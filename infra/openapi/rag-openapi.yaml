@@ -1,0 +1,77 @@
+openapi: "3.0.3"
+info:
+  title: RAG Service API
+  version: "1.0.0"
+  description: "Canonical RAG Service contract for /rag/query — returns an answer plus provenance sources."
+paths:
+  /rag/query:
+    post:
+      summary: Retrieve and generate answer
+      description: "Return a generated answer for a question with provenance metadata (sources: doc_id, section, score)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RagRequest"
+      responses:
+        "200":
+          description: Answer with citations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RagResponse"
+components:
+  schemas:
+    RagRequest:
+      type: object
+      required:
+        - tenant_id
+        - question
+      properties:
+        tenant_id:
+          type: string
+          description: "Tenant identifier (UUID or tenant key)."
+        question:
+          type: string
+          description: "User question or query text."
+        top_k:
+          type: integer
+          description: "Number of top retrieved chunks to include in retrieval (optional)."
+          default: 5
+    SourceItem:
+      type: object
+      properties:
+        doc_id:
+          type: string
+          description: "Document identifier for provenance."
+        section:
+          type: string
+          description: "Section or fragment identifier within the document."
+        score:
+          type: number
+          format: float
+          description: "Retrieval/ranker score for this source chunk."
+        version_id:
+          type: string
+          description: "Optional document version id for auditability."
+    RagResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+          description: "Generated answer text."
+        sources:
+          type: array
+          description: "Array of provenance source items used to generate the answer."
+          items:
+            $ref: "#/components/schemas/SourceItem"
+      example:
+        answer: "Your refund has been processed. See ticket #1234."
+        sources:
+          - doc_id: "kb-article-42"
+            section: "refunds/step-3"
+            score: 0.92
+            version_id: "v1.2"
+note: |
+  This OpenAPI file is the canonical /rag/query contract and should be used as the authoritative schema for the rag-service implementation and for contract tests.

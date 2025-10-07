@@ -1,0 +1,23 @@
+apiVersion: v2
+name: multi-tenant-helpdesk
+description: Umbrella chart for the multi-tenant helpdesk application
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+dependencies:
+- name: tool-registry-service
+  version: "0.1.0"
+  repository: "file://./tool-registry-service"
+- name: retrieval-service
+  version: "0.1.0"
+  repository: "file://./retrieval-service"
+- name: mock-llm-service
+  version: "0.1.0"
+  repository: "file://./mock-llm-service"
+- name: helpdesk-service
+  version: "0.1.0"
+  repository: "file://./helpdesk-service"
+- name: frontend
+  version: "0.1.0"
+  repository: "file://./frontend"

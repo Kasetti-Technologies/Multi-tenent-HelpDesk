@@ -1,0 +1,59 @@
+openapi: "3.0.3"
+info:
+  title: Tool Registry API
+  version: "1.0.0"
+  description: "Canonical Tool Registry contract. Tools must provide JSON-Schema for args; orchestrator will validate and invoke tools via this API."
+paths:
+  /tools/{name}/invoke:
+    post:
+      summary: Invoke a registered tool
+      description: "Invoke a tool by name. The request body is validated against the tool's JSON-Schema (args)."
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            description: "Tool name (identifier)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToolInvokeRequest"
+      responses:
+        "200":
+          description: Tool output
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolInvokeResponse"
+components:
+  schemas:
+    ToolInvokeRequest:
+      type: object
+      required:
+        - tenant_id
+        - args
+      properties:
+        tenant_id:
+          type: string
+          description: "Tenant identifier invoking the tool."
+        args:
+          type: object
+          description: "Tool-specific argument object validated against the tool's JSON-Schema definition."
+    ToolInvokeResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: "Status of tool execution, e.g., 'ok' or 'error'."
+        result:
+          type: object
+          description: "Tool-specific result payload."
+      example:
+        status: "ok"
+        result:
+          ticket_id: "abc-123"
+note: |
+  This OpenAPI file is the canonical /tools/{name}/invoke contract and must be used by the orchestrator, the tool-registry implementation, and by contract tests. Tools are expected to register JSON-Schema definitions for their args which the tool-registry uses to validate incoming requests.
