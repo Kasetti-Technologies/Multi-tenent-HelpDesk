@@ -1,0 +1,114 @@
+CHEKLIST AND PLAYBOOK
+
+SECTION A — PROJECT PRE-CHECKLIST (GLOBAL)
+"Project Pre-Checklist (required before any task)"
+"Operating System: Linux (Ubuntu 22.04 recommended) or macOS for local development" "@33 @34"
+"Docker (latest), Docker Compose" "@33"
+"Kubernetes toolchain: kind (for local) or cloud cluster credentials, kubectl" "@34"
+"Helm (v3+), Terraform (v1.4+), ArgoCD access (GitOps)" "@34 @42"
+"Databases/clients: PostgreSQL client, Qdrant client CLI or SDK, Redis CLI, Elasticsearch/OpenSearch client" "@35 @22"
+"Languages & Runtimes: Python 3.11+, Node.js 18+, TypeScript, pnpm/npm" "@36 @37"
+"Dev tooling: Git, GitHub access, pre-configured repo with branch protections (monorepo layout described below)" "@38 @33"
+"Secrets: HashiCorp Vault or equivalent access set up (BYOK capability optional)" "@40 @41"
+"Testing: pytest, schemathesis (contract tests), Playwright (E2E)" "@38 @39"
+"Observability: Prometheus / Grafana access or local instance for development" "@27 @12"
+"Recommended local ML: Sentence-Transformers installed (for embeddings), OpenLLM/BentoML if running local models" "@29 @5 @22"
+
+"Canonical GitHub Monorepo Structure (create this before starting tasks)" "@33"
+"\"multi-tenant-helpdesk/\""
+"\"├─ README.md\""
+"\"├─ infra/\""
+"\"│ ├─ helm-charts/\""
+"\"│ ├─ terraform/\""
+"\"│ └─ argocd-apps/\""
+"\"├─ services/\""
+"\"│ ├─ rag-service/ (FastAPI - Python)\""
+"\"│ ├─ llm-gateway/ (Node.js)\""
+"\"│ ├─ tool-registry/ (FastAPI - Python)\""
+"\"│ ├─ ingestion-worker/ (Python)\""
+"\"│ ├─ botpress-extensions/\""
+"\"│ └─ admin-ui/ (Next.js)\""
+"\"├─ tests/\""
+"\"│ ├─ e2e/\""
+"\"│ └─ contract/\""
+"\"└─ ci/\""
+
+
+"----- PLAYBOOK START -----"
+
+General project pre-checklist (run before starting any subtask) — all items must be present locally or accessible to follow backlog
+"1. Git & GitHub: Git CLI installed and configured, a new repository created (multi-tenant-helpdesk), branch protection rules recommended." "2. Docker & Compose: Docker Desktop or Docker Engine installed and running." "3. Kubernetes: kind or minikube for local cluster, kubectl installed, Helm v3 installed." "4. Languages & runtimes: Python 3.11 (with venv), Node.js 18+ (nvm recommended), pnpm or npm, TypeScript installed globally optional." "5. Databases & services: local Postgres (12+), Redis, Qdrant, Elasticsearch/OpenSearch local dev instances (docker-compose) available." "6. Dev tooling: pytest, Playwright, schemathesis installed in python dev environment." "7. Secrets: Vault accessible or mocked; Keycloak dev realm if SSO flows are tested." "8. Model tooling: sentence-transformers available in Python environment; ability to call cloud LLMs (optional) or run OpenLLM/BentoML local models." "9. CI: GitHub Actions runner configured skeleton in .github/workflows for future automation." "10. Monorepo layout created exactly as specified in root README and scaffold. " "Each of the above items traces to the Technical Spec multi-tenant and infra guidance. @2 @68"
+
+How to use the playbook and CSV
+"1. Import CSV into Jira mapping the CSV headers to Jira fields. @22" "2. Start with EPIC 1 tasks (T1.*) and only proceed to EPIC 2 once T1.1 and T1.2 subtasks have been completed and tested. @11 @16" "3. For each subtask: a) run developer pre-checklist, b) execute code-generation prompt in an LLM or generate code manually, c) place generated file(s) into specified repo path, d) run the step-by-step tests, e) commit and push with descriptive commit message and PR referencing Jira ticket. @1 @5"
+
+Exact code-generation prompt guidance (copy/paste-ready) — use these with your code generator/LLM so output is single-shot and drop-in
+(Each prompt below is verbatim; paste into the code LLM and use the output files as-is into the repo paths referenced above.)
+
+Project scaffolding
+"Create the shell commands to scaffold the canonical monorepo layout 'multi-tenant-helpdesk' exactly as shown (include all folders and README.md placeholders). Output only the shell commands (mkdir, touch) required to create the structure." @1
+
+T1.1.02 tenants DDL (exact prompt)
+"Generate SQL DDL only (no explanation) for table 'tenants' with columns: tenant_id UUID PRIMARY KEY, name TEXT NOT NULL, domain TEXT UNIQUE NOT NULL, config JSONB NOT NULL, created_at TIMESTAMP DEFAULT now(), updated_at TIMESTAMP DEFAULT now(); ensure the file contains only SQL and ends with a semicolon. Place output for file infra/terraform/modules/postgres/migrations/V1.0.1__create_tenants.sql." @68
+
+T1.1.03 RLS enable (exact prompt)
+"Output the single SQL command to enable Row Level Security on table tenants: ALTER TABLE tenants ENABLE ROW LEVEL SECURITY; Output only the SQL command suitable for infra/terraform/modules/postgres/migrations/V1.0.2__enable_rls.sql." @68
+
+T1.2.01 get_validated_tenant_id dependency (exact prompt)
+"Generate the Python file services/common/auth.py implementing get_validated_tenant_id() as a FastAPI dependency. Behavior: check Authorization Bearer JWT first for a claim 'tenant_id' and validate it's a UUID; if not present, check header 'X-Tenant-ID' and validate; raise fastapi.HTTPException(status_code=401, detail='missing tenant') on failure. Use PyJWT decode stub with SECRET env var placeholder. Output only the Python file." @1
+
+T2.1.04 Airflow DAG file (exact prompt)
+"Generate Airflow DAG file infra/airflow/dags/ingest_cms_docs.py with default_args owner='ingestion', retries=1, schedule_interval='@hourly'. Use PythonOperator tasks fetch_docs_task, parse_and_chunk_task, push_to_redis_task referencing importable functions fetch_docs, parse_and_chunk, push_to_redis_stream from services/ingestion-worker/dag_tasks. Output only the file content." @69
+
+T2.2.01 worker main loop (exact prompt)
+"Generate Python worker script services/ingestion-worker/worker.py implementing a Redis consumer group 'ingest_group' reading from 'ingest_stream' with XREADGROUP, processing each message by computing embeddings from services/ingestion-worker/embeddings.compute_embedding, and calling services/ingestion-worker/qdrant_wrapper.upsert_to_qdrant. Include graceful shutdown, logging, and ack/nack semantics. Output only the Python file." @70
+
+T2.2.02 compute_embedding (exact prompt)
+"Generate Python file services/ingestion-worker/embeddings.py with function compute_embedding(texts: List[str]) -> List[List[float]] using sentence_transformers.SentenceTransformer('all-mpnet-base-v2'), with batch processing and optional in-memory LRU cache. Output only the Python file." @69
+
+T2.2.03 qdrant upsert wrapper (exact prompt)
+"Generate Python file services/ingestion-worker/qdrant_wrapper.py with functions create_collection_if_not_exists(tenant_id) and upsert_to_qdrant(tenant_id, id, vector, metadata) using qdrant_client. Use collection name 'tenant_{tenant_id}'. Output only the Python file." @69
+
+T3.1.01 Pydantic models (exact prompt)
+"Generate Python file services/rag-service/app/models/schemas.py defining Pydantic models: Source(doc_id: str, section: str, score: float), RagRequest(tenant_id: UUID, question: str, top_k: int = 5), RagResponse(answer: str, sources: List[Source]). Output only the Python file." @5
+
+T3.1.04 rank_fusion prompt
+"Generate Python file services/rag-service/app/retrieval/rank_fusion.py implementing rank_fusion(q_results, bm25_results, top_k) that normalizes scores by min-max and returns fused top_k docs as list of {'doc_id','section','fused_score'}. Include unit-test-friendly function signatures. Output only the Python file." @22
+
+T3.1.07 OpenAPI rag file (exact prompt)
+"Generate OpenAPI YAML file infra/openapi/rag-openapi.yaml for POST /rag/query request and response using components schemas RagRequest and RagResponse consistent with services/rag-service Pydantic models. OpenAPI version 3.0.3. Output only the YAML content." @5
+
+T4.1.01 LLM Gateway index.ts (exact prompt)
+"Generate a TypeScript Express server file services/llm-gateway/src/index.ts that exposes GET /health returning {status:'ok'}, and imports controllers for POST /llm/invoke. Read env vars via process.env. Output only the TypeScript file." @3
+
+T4.1.02 cache util (exact prompt)
+"Generate TypeScript module services/llm-gateway/src/lib/cache.ts implementing generateCacheKey(tenantId, promptTemplate, contextHash) using crypto.createHash('sha256') and async functions get(key) and set(key, value, ttlSeconds) using ioredis or node-redis. Default TTL 86400. Output only the TypeScript file." @3
+
+T4.1.03 circuit-breaker (exact prompt)
+"Generate TypeScript module services/llm-gateway/src/lib/circuit.ts that exports withCircuitBreaker(fn, options) using opossum library. Options should include timeout, errorThresholdPercentage, resetTimeout. Provide fallback support. Output only the TypeScript file." @3
+
+T5.1.02 Tool Registry main (exact prompt)
+"Generate Python FastAPI file services/tool-registry/app/main.py implementing POST /tools/{tool_name}/invoke that at startup loads JSON Schema files from services/tool-registry/schemas into a dict, validates incoming JSON with jsonschema.validate, and on success calls a stub invoke_tool(tool_name, payload) function returning {'status':'ok','result':{}}. Output only the Python file." @23
+
+T6.1.02 Botpress flow JSON (exact prompt)
+"Generate Botpress flow JSON file services/botpress-extensions/flows/basic_rag_flow.json: on user message, perform HTTP action POST to 'https://rag-service.local/rag/query' with body {'tenant_id': '{{session.tenant_id}}', 'question': '{{event.text}}'}, show response.answer in bot message, and render a 'Request Agent' button that posts to 'https://handover-service.local/handover' body {'tenant_id':'{{session.tenant_id}}','session_id':'{{session.id}}','context':'{{event.text}}'}. Output only the JSON content." @35
+
+T6.2.01 handover-service index (exact prompt)
+"Generate Node.js file services/handover-service/src/index.js that starts an Express server on port from env or 3001, attaches Socket.IO, registers namespace '/handover' and handlers for 'bot_to_agent' and 'agent_to_user' events that broadcast to namespace rooms. Output only the JS file content." @36
+
+T6.2.02 tickets DDL (exact prompt)
+"Generate SQL DDL only for tickets table: CREATE TABLE tickets ( ticket_id UUID PRIMARY KEY, tenant_id UUID REFERENCES tenants(tenant_id), session_id TEXT, status TEXT, priority TEXT, assigned_agent TEXT, history JSONB, created_at TIMESTAMP DEFAULT now(), updated_at TIMESTAMP DEFAULT now() ); Output only the SQL content suitable for infra/terraform/modules/postgres/migrations/V1.0.2__create_tickets.sql." @70
+
+T7.1.01 Prometheus & OTEL snippet (exact prompt)
+"Generate Python snippet to add prometheus_client exposition and OpenTelemetry FastAPI middleware to services/rag-service/app/main.py. Include histogram metric rag_query_duration_seconds and configuration to export OTLP to process.env.OTEL_COLLECTOR_URL. Output only the code snippet file." @71
+
+T7.2.01 Presidio adapter (exact prompt)
+"Generate Python module services/compliance/presidio_adapter.py implementing analyze_and_redact(text: str) -> Dict with keys redacted_text, findings (list), requires_manual_approval (bool) using Presidio Analyzer API calls. If Presidio not present, implement stub that searches for email/phone regex patterns. Output only the Python file." @23
+
+T8.1.02 Admin playground files (exact prompt)
+"Generate Next.js TSX page services/admin-ui/pages/playground.tsx with a textarea for prompt, select for model ['gpt-4','mistral-7b','llama3'], submit button calling /api/llm/invoke, and result area showing response text and usage tokens. Also generate API route services/admin-ui/pages/api/llm/invoke.ts that proxies to process.env.LLM_GATEWAY_URL + '/llm/invoke'. Output both files content concatenated separated by clear comment lines." @24
+
+"----- PLAYBOOK END -----"
+
+Final notes and sequencing guidance
+"1. Execute tasks in topological order: infra migrations (T1.1.*) -> tenant propagation (T1.2.*) -> ingestion DAG + worker (T2.*) -> RAG service (T3.*) -> LLM Gateway (T4.*) -> Tool Registry (T5.*) -> Botpress + handover (T6.*) -> Observability & compliance (T7.*) -> Admin UI (T8.*). This order enforces infrastructure dependencies first. @21 @22" "2. Run unit tests locally first, then contract tests (schemathesis), then E2E Playwright tests. Each JIRA ticket includes tests and gating criteria; only merge when tests pass. @6 @12" "3. When generating code via LLM prompts, paste the exact prompt from the Playbook to avoid ambiguous follow-ups; validate produced files by running lint and unit tests immediately. @27" "4. If you want, I can now produce a single downloadable zip containing the initial scaffolding of the monorepo and all the produced files (placeholders) so developers can start by opening the repository locally. @1"
