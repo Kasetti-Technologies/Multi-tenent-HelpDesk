@@ -1,0 +1,13 @@
+This chart deploys the multi-tenant helpdesk application.
+
+To install the chart with the release name `my-release`:
+
+```
+$ helm install my-release . --dependency-update
+```
+
+To uninstall the `my-release` deployment:
+
+```
+$ helm uninstall my-release
+```

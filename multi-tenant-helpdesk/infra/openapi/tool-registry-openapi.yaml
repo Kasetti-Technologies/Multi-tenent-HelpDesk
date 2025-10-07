@@ -1,0 +1,11 @@
+openapi: 3.0.0
+info:
+  title: Tool Registry API
+  version: 1.0.0
+paths:
+  /tools:
+    get:
+      summary: Get a list of available tools
+      responses:
+        '200':
+          description: A list of tools

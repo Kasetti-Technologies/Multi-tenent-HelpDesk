@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mock-llm-service.fullname" . }}
+  labels:
+    {{- include "mock-llm-service.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mock-llm-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "mock-llm-service.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            - name: QDRANT_URL
+              value: "{{ .Values.env.QDRANT_URL }}"
+            - name: ELASTIC_URL
+              value: "{{ .Values.env.ELASTIC_URL }}"
+            - name: REDIS_URL
+              value: "{{ .Values.env.REDIS_URL }}"
+          envFrom:
+            - secretRef:
+                name: {{ .Values.secrets.tenant_registry_db }} # secret contains DATABASE_URL etc.
+          ports:
+            - containerPort: {{ .Values.service.port }}

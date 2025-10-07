@@ -1,0 +1,25 @@
+replicaCount: 1
+image:
+  repository: myorg/tenant-registry-service
+  tag: v0.1.0
+  pullPolicy: IfNotPresent
+service:
+  type: ClusterIP
+  port: 8000
+env:
+  # These values should be overridden by environment-specific values.
+  # For production, use Kubernetes ExternalSecrets to fetch secrets from Vault.
+  QDRANT_URL: "qdrant:6333"
+  ELASTIC_URL: "elasticsearch:9200"
+  REDIS_URL: "redis:6379"
+secrets:
+  # This secret should be created by the operator and contain DATABASE_URL, etc.
+  # For production, this should be managed by a secret store like Vault.
+  tenant_registry_db: "tenant-db-creds"
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

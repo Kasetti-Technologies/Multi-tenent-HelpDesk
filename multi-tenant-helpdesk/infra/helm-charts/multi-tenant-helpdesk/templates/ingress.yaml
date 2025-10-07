@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "multi-tenant-helpdesk.fullname" . }}
+  annotations:
+    # This annotation is required for GKE Ingress
+    kubernetes.io/ingress.class: "gce"
+    # This annotation is required for cert-manager to issue a certificate
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  labels:
+    {{- include "multi-tenant-helpdesk.labels" . | nindent 4 }}
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ .Release.Name }}-frontend
+            port:
+              number: 80
+      - path: /api/*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ .Release.Name }}-helpdesk-service
+            port:
+              number: 8000
